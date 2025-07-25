@@ -1,11 +1,20 @@
 import os
 
 import typer
+from typer._completion_classes import completion_init
+from typer._completion_shared import install as install_completion
 
-from .completion import complete_pass_entries
+from .completion import _detect_shell_and_rc, complete_pass_entries
 from .core import PassEnv
 
-app = typer.Typer(help="Load environment variables from pass entries")
+app = typer.Typer(
+    help="Load environment variables from pass entries",
+    add_completion=False,  # Suppress the default --install-completion
+)
+
+# Initialize completion classes since we disabled add_completion
+# This ensures Typer's custom completion handlers are registered
+completion_init()
 
 
 @app.command()
@@ -65,8 +74,22 @@ def list() -> None:
 
 
 @app.command()
-def install() -> None:
-    """Install shell function to rc file"""
+def install(
+    shell: str = typer.Option(
+        None, "--shell", help="Shell to install completion for (auto-detected if not provided)"
+    ),
+    skip_completion: bool = typer.Option(
+        False, "--skip-completion", help="Skip shell completion installation"
+    ),
+) -> None:
+    """Install shell function to rc file and set up completion"""
+
+    # Detect shell using Typer's detection logic
+    detected_shell, rc_file = _detect_shell_and_rc()
+
+    typer.echo(f"🔍 Detected shell: {detected_shell}")
+
+    # Install shell function so we can export env vars
     shell_function = """
 passenv() {
     case "$1" in
@@ -80,33 +103,59 @@ passenv() {
 }
 """
 
-    # Detect shell
-    shell = os.environ.get("SHELL", "").split("/")[-1]
-
-    if shell == "bash":
-        rc_file = os.path.expanduser("~/.bashrc")
-        shell_function = shell_function.replace("zsh_source", "bash_source")
-    elif shell == "zsh":
-        rc_file = os.path.expanduser("~/.zshrc")
-    else:
+    if not rc_file:
+        typer.echo(f"⚠️  Unsupported shell: {detected_shell}")
         typer.echo("Add this function to your shell RC file:")
         typer.echo(shell_function)
+        if not skip_completion:
+            typer.echo("\nFor shell completion, try:")
+            typer.echo("passenv install --shell bash  # or zsh, fish, powershell")
         return
 
-    # Check if already exists
+    # Check if shell function already exists
+    function_exists = False
     if os.path.exists(rc_file):
         with open(rc_file, "r") as f:
             content = f.read()
         if "passenv() {" in content:
-            typer.echo(f"passenv function already exists in {rc_file}")
-            return
+            typer.echo(f"✅ passenv function already exists in {rc_file}")
+            function_exists = True
 
-    # Add function to rc file
-    with open(rc_file, "a") as f:
-        f.write(f"\n# Added by passenv\n{shell_function}")
+    # Add function to rc file if it doesn't exist
+    if not function_exists:
+        # Ensure directory exists (important for fish config)
+        os.makedirs(os.path.dirname(rc_file), exist_ok=True)
 
-    typer.echo(f"Shell function added to {rc_file}")
-    typer.echo(f"Run 'source {rc_file}' or restart your shell to activate")
+        with open(rc_file, "a") as f:
+            f.write(f"\n# Added by passenv\n{shell_function}")
+        typer.echo(f"✅ Shell function added to {rc_file}")
+
+    # Install shell completion unless skipped
+    if not skip_completion:
+        try:
+            typer.echo("🔧 Installing shell completion...")
+
+            # Use the shell parameter for completion, fall back to detected shell
+            completion_shell = shell or detected_shell
+            shell_name, completion_path = install_completion(shell=completion_shell)
+
+            typer.secho(
+                f"✅ {shell_name} completion installed in {completion_path}", fg=typer.colors.GREEN
+            )
+
+        except Exception as e:
+            typer.secho(f"⚠️  Could not install completion: {e}", fg=typer.colors.YELLOW)
+            typer.echo("You can try installing completion for a specific shell with:")
+            typer.echo("passenv install --shell bash  # or zsh, fish, powershell")
+
+    # Final instructions
+    if not function_exists or not skip_completion:
+        if detected_shell == "fish":
+            typer.echo(f"\n💡 Restart your shell or run 'source {rc_file}' to activate")
+        else:
+            typer.echo(f"\n💡 Run 'source {rc_file}' or restart your shell to activate")
+
+    typer.secho("✨ Installation complete!", fg=typer.colors.GREEN)
 
 
 if __name__ == "__main__":

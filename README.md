@@ -29,10 +29,9 @@ After installation, run the setup command:
 
 ```bash
 passenv install
-passenv --install-completion
 ```
 
-This will add the necessary shell function and completion to your `~/.bashrc` or `~/.zshrc`.
+This will add the necessary shell function and completion to your `~/.bashrc`, `~/.zshrc`, or specific shell rc file.
 
 ## Usage
 
