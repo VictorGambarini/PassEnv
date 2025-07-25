@@ -28,7 +28,7 @@ if ! git diff-index --quiet HEAD --; then
 fi
 
 # Update version in pyproject.toml
-sed -i "1s/version = \".*\"/version = \"$VERSION\"/" pyproject.toml
+sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
 
 # Update version in __init__.py
 sed -i "s/__version__ = \".*\"/__version__ = \"$VERSION\"/" src/passenv/__init__.py
