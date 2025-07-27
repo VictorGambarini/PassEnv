@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import typer
 from typer._completion_classes import completion_init
@@ -6,6 +7,7 @@ from typer._completion_shared import install as install_completion
 
 from .completion import _detect_shell_and_rc, complete_pass_entries
 from .core import PassEnv
+from .exporters import Exporter, ExportFormat
 
 app = typer.Typer(
     help="Load environment variables from pass entries",
@@ -68,6 +70,43 @@ def list() -> None:
                 typer.echo(entry)
         else:
             typer.echo("No pass entries found")
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+
+@app.command()
+def export(
+    pass_path: str = typer.Argument(
+        ..., help="Pass entry path to export", autocompletion=complete_pass_entries
+    ),
+    format: ExportFormat = typer.Option(ExportFormat.ENV, "--format", "-f", help="Export format"),
+    output: str = typer.Option(
+        None, "--output", "-o", help="Output file path (prints to stdout if not specified)"
+    ),
+) -> None:
+    """Export secrets from a pass entry to various formats"""
+    try:
+        passenv = PassEnv()
+        exporter = Exporter()
+
+        # Get the pass entry content and parse it
+        content = passenv.pass_client.get_entry(pass_path)
+        variables = passenv.parser.parse(content)
+
+        # Export to the specified format
+        exported_content = exporter.export(variables, format)
+
+        if output:
+            # Write to file
+            output_path = Path(output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(exported_content)
+            typer.echo(f"Exported {len(variables)} variables to {output_path}")
+        else:
+            # Print to stdout
+            print(exported_content)
+
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)

@@ -8,14 +8,14 @@ Load environment variables from [pass](https://www.passwordstore.org/) entries s
 - **Simple**: Load/unload environment variables with a single command
 - **Stateful**: Tracks what's loaded and prevents conflicts
 - **Auto-completion**: Tab completion for pass entries
-- **Shell Integration**: Works with bash and zsh
+- **Shell Integration**: Works with bash, zsh, fish, and more
 
 ## Installation
 
 ### Prerequisites
 
 - [pass](https://www.passwordstore.org/) must be installed and initialized
-- Python 3.8 or higher
+- Python 3.10 or higher
 
 ### Install from PyPI
 
@@ -49,6 +49,9 @@ passenv list
 
 # Unload current environment
 passenv unload
+
+# Export as .env format (default)
+passenv export database/envs
 ```
 
 ### Pass Entry Format
@@ -98,6 +101,100 @@ passenv load myapp/staging
 
 # Clean up
 passenv unload
+```
+
+### Basic Export Usage
+
+```bash
+# Export as .env format (default)
+passenv export database/envs
+
+# Export to different formats
+passenv export database/envs --format yaml
+passenv export database/envs --format json
+passenv export database/envs --format csv
+passenv export database/envs --format docker
+
+# Save to file
+passenv export database/envs --output .env
+passenv export database/envs --format yaml --output config.yaml
+```
+
+### Export Formats
+
+#### .env format (default)
+```bash
+passenv export myapp/production
+```
+Output:
+```
+DATABASE_URL=postgres://user:pass@localhost/mydb
+API_KEY=secret123
+DEBUG=false
+LOG_LEVEL=info
+```
+
+#### YAML format
+```bash
+passenv export myapp/production --format yaml
+```
+Output:
+```yaml
+DATABASE_URL: postgres://user:pass@localhost/mydb
+API_KEY: secret123
+DEBUG: "false"
+LOG_LEVEL: info
+```
+
+#### JSON format
+```bash
+passenv export myapp/production --format json
+```
+Output:
+```json
+{
+  "DATABASE_URL": "postgres://user:pass@localhost/mydb",
+  "API_KEY": "secret123", 
+  "DEBUG": "false",
+  "LOG_LEVEL": "info"
+}
+```
+
+#### CSV format
+```bash
+passenv export myapp/production --format csv
+```
+Output:
+```csv
+KEY,VALUE
+DATABASE_URL,postgres://user:pass@localhost/mydb
+API_KEY,secret123
+DEBUG,false
+LOG_LEVEL,info
+```
+
+#### Docker format
+```bash
+passenv export myapp/production --format docker
+```
+Output:
+```
+-e DATABASE_URL="postgres://user:pass@localhost/mydb" -e API_KEY="secret123" -e DEBUG="false" -e LOG_LEVEL="info"
+```
+
+### Docker Integration Examples
+
+```bash
+# Export and use directly with docker run
+docker run $(passenv export myapp/production --format docker) my-app:latest
+
+# Save to file and use with docker-compose
+passenv export myapp/production --output .env
+docker-compose up
+
+# Use with Kubernetes ConfigMap
+passenv export myapp/production --format yaml --output configmap.yaml
+kubectl create configmap app-config --from-file=configmap.yaml
 ```
 
 ### Pass Entry Organization Suggestion
