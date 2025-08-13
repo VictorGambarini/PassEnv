@@ -23,6 +23,12 @@ Load environment variables from [pass](https://www.passwordstore.org/) entries s
 pip install passenv
 ```
 
+### Or install with pipx to have it globally accessible
+
+```bash
+pipx install passenv
+```
+
 ### Set up shell integration
 
 After installation, run the setup command:
